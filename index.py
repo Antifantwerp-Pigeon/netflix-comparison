@@ -9,13 +9,14 @@ from csv import writer
 # CONSTANTS
 CACHE_DIR = ".cache"
 EXPECTED_COUNTRY_COUNT = 249
-HEADERS = ["id", "name", "sharing available"]
+HEADERS = ["id", "name", "plan", "currency", "price", "term", "sharing available"]
 
 
 # REGEX
 re_alphanumeric = compile(r"[\d\w]")
 re_countries = compile(r"(?<=\"allCountries\": )\[.*?]", MULTILINE)
 re_help = compile(r"(?<=<div class=\"c-wrapper\">).*?(?=</div>)", MULTILINE)
+re_pricing = compile(r"<strong>(?P<plan>\w*?)</strong>?: (?P<currencyone>(\W|[A-Za-zč])*?|)(?P<price>(\d|\.|,)*) ?(?P<currencytwo>(\W|[A-Za-zč])*?|) ?/ ?(?P<term>\w*)", MULTILINE)
 
 
 def _print(code, text, newline=True):
@@ -107,14 +108,24 @@ if __name__ == "__main__":
         if "Share Netflix with someone who doesn’t live with you".lower() in help_acc_sharing.lower():
             log("\tSHARING AVAILABLE:", False)
             ok("TRUE")
-            
-            country.append(1)
-            
+            country.append(1)            
         else:
             log("\tSHARING AVAILABLE:", False)
             err("FALSE")
             country.append(0)
         
+        data = re_pricing.search(help_pricing).groupdict()
+        for prop in ["plan", "currency", "price", "term"]:
+            log(f"\t{prop}: ", False)
+            if prop != "currency":
+                log_cy(data[prop])
+                country.append(data[prop])
+            else:
+                currency = data["currencyone" if "currencytwo" in data else "currency2"].strip()
+                if len(currency) > 3:
+                    err(f"\tCurrency '{currency}' has a suspicious length {len(currency)}. Please double-check and change the length/regex as applicable")
+                    exit()
+                log_cy(currency)
 
         output.append(country)
 
