@@ -56,7 +56,7 @@ def scrape(url):
     with open(filename, "r", encoding="UTF-8") as file:
         data = file.read().replace("\n", "")
     
-    ok(f"\tLOADED: {url}")
+    ok(f"\tLOADED: {filename} ({url})")
     print()
     
     return data
@@ -64,12 +64,20 @@ def scrape(url):
 def scrape_help(url):
     # Not sure if this applies everywhere but it'll do the thing for now
     return re_help.findall(scrape(url))[0]
-    
+
+
+# https://stackoverflow.com/a/3191811
+def write_csv(data: list, headers=HEADERS, filename="output.csv"):
+    with open(filename, "w", encoding="UTF-8", newline="") as file:
+        csv_writer = writer(file)
+        csv_writer.writerow(headers)
+        csv_writer.writerows(data)
 
 if __name__ == "__main__":
     system("color")  # Enable terminal colors in Windows
 
     output = []
+    unavailable = []
     makedirs(CACHE_DIR, exist_ok=True)
 
 
@@ -93,6 +101,7 @@ if __name__ == "__main__":
 
         if "Pricing (" not in help_pricing:
             err("\tCOUNTRY UNAVAILABLE")
+            unavailable.append(country)
             continue
 
         if "Share Netflix with someone who doesn’t live with you".lower() in help_acc_sharing.lower():
@@ -109,13 +118,8 @@ if __name__ == "__main__":
 
         output.append(country)
 
-    # https://stackoverflow.com/a/3191811
-    with open("output.csv", "w", encoding="UTF-8", newline="") as file:
-        csv_writer = writer(file)
-        csv_writer.writerow(HEADERS)
-        csv_writer.writerows(output)
-        
-
+    write_csv(output)
+    write_csv(unavailable, ["id", "name"], "unavailable.csv")       
 
 
 
