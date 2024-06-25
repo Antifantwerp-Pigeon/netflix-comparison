@@ -9,7 +9,7 @@ from csv import writer
 # CONSTANTS
 CACHE_DIR = ".cache"
 EXPECTED_COUNTRY_COUNT = 249
-HEADERS = ["id", "name", "plan", "currency", "price", "term", "sharing available"]
+HEADERS = ["id", "name", "plan", "currency", "lowest price", "lowest plan", "highest price", "highest plan", "sharing available"]
 
 
 # REGEX
@@ -114,18 +114,62 @@ if __name__ == "__main__":
             err("FALSE")
             country.append(0)
         
-        data = re_pricing.search(help_pricing).groupdict()
-        for prop in ["plan", "currency", "price", "term"]:
-            log(f"\t{prop}: ", False)
-            if prop != "currency":
-                log_cy(data[prop])
-                country.append(data[prop])
-            else:
-                currency = data["currencyone" if "currencytwo" in data else "currency2"].strip()
-                if len(currency) > 3:
-                    err(f"\tCurrency '{currency}' has a suspicious length {len(currency)}. Please double-check and change the length/regex as applicable")
-                    exit()
+        # Pricing
+        currency = None
+        lowest_price = 99999999999
+        lowest_plan = "None"
+        highest_price = 0
+        highest_plan = "None"
+        pos = 0
+        while True:
+            query = re_pricing.search(help_pricing, pos)
+            try:
+                data = query.groupdict()
+            except AttributeError:
+                break
+            # Currency
+            plan_currency = data["currencyone" if "currencytwo" in data else "currency2"].strip()
+            
+            # Check input
+            if len(plan_currency) > 3:
+                err(f"\tCurrency '{plan_currency}' has a suspicious length {len(plan_currency)}. Please double-check and change the length/regex as applicable")
+
+            # Save currency if not yet saved. Alternatively, double check it's the same
+            if currency == None:
+                currency = plan_currency
+                log("\tCurrency: ", False)
                 log_cy(currency)
+            elif plan_currency != currency:
+                err("\tDifferent plans in the same country have different currencies. Assuming error, exiting.")
+                exit()
+            
+            # Price
+            price = float(data["price"].replace(",", ""))  # TODO CHANGE
+            if price == lowest_price or price == highest_price:
+                err("\tTwo identical pricing plans have been found. Assuming error, exiting")
+                exit()
+            plan_label = f"/{data['term']} ({data['plan']})"
+            if price < lowest_price:
+                lowest_price = price
+                lowest_plan = plan_label
+            if price > highest_price:
+                highest_price = price
+                highest_plan = plan_label
+
+
+            pos = query.end()
+                
+        
+        log(f"\tLowest price:", False)
+        log_bl(f"{lowest_price}{lowest_plan}")
+        log(f"\tHighest price:", False)
+        log_bl(f"{highest_price}{highest_plan}")
+
+        country.append(currency)
+        country.append(lowest_price)
+        country.append(lowest_plan)
+        country.append(highest_price)
+        country.append(highest_plan)
 
         output.append(country)
 
